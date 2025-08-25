@@ -722,28 +722,7 @@ class EmployeeManager:
             return True
         return False
     
-    def delete_all_employee_data(self, employee_id: str):
-        """Exclui permanentemente um funcionário, seus ASOs, treinamentos e todos os arquivos associados."""
-        from gdrive.config import EMPLOYEE_DATA_SHEET_NAME
-        
-        print(f"Iniciando exclusão total para o funcionário ID: {employee_id}")
-        
-        trainings_to_delete = self.training_df[self.training_df['funcionario_id'] == str(employee_id)]
-        for index, row in trainings_to_delete.iterrows():
-            self.delete_training(row['id'], row.get('arquivo_id'))
-        
-        asos_to_delete = self.aso_df[self.aso_df['funcionario_id'] == str(employee_id)]
-        for index, row in asos_to_delete.iterrows():
-            self.delete_aso(row['id'], row.get('arquivo_id'))
-        
-        if self.sheet_ops.excluir_dados_aba(EMPLOYEE_DATA_SHEET_NAME, employee_id):
-            print(f"Registro do funcionário ID {employee_id} excluído da planilha.")
-            st.cache_data.clear()
-            self.load_data()
-            return True
-        else:
-            st.error(f"Falha ao excluir o registro principal do funcionário ID {employee_id}.")
-            return False 
+    
             
     def validar_treinamento(self, norma, modulo, tipo_treinamento, carga_horaria):
         norma_padronizada = self._padronizar_norma(norma)
@@ -808,6 +787,7 @@ class EmployeeManager:
         
         # Se nenhuma das condições de falha for atendida, o treinamento é considerado conforme.
         return True, "Carga horária conforme."
+
 
 
 
