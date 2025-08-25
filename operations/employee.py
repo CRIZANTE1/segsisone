@@ -693,6 +693,35 @@ class EmployeeManager:
             st.error("Alguns treinamentos não puderam ser arquivados.")
             return False
 
+    def delete_aso(self, aso_id: str, file_url: str):
+        """
+        Deleta permanentemente um registro de ASO e seu arquivo no Google Drive.
+        """
+        logger.info(f"Iniciando exclusão do ASO ID: {aso_id}")
+        # A classe GoogleApiManager já lida com a extração do ID do arquivo da URL
+        if file_url and pd.notna(file_url):
+            if not self.api_manager.delete_file_by_url(file_url):
+                st.warning(f"Aviso: Falha ao deletar o arquivo do ASO no Google Drive (URL: {file_url}), mas o registro na planilha será removido.")
+        
+        if self.sheet_ops.excluir_dados_aba("asos", aso_id):
+            self.load_data() # Recarrega os dados
+            return True
+        return False
+
+    def delete_training(self, training_id: str, file_url: str):
+        """
+        Deleta permanentemente um registro de treinamento e seu arquivo no Google Drive.
+        """
+        logger.info(f"Iniciando exclusão do Treinamento ID: {training_id}")
+        if file_url and pd.notna(file_url):
+            if not self.api_manager.delete_file_by_url(file_url):
+                st.warning(f"Aviso: Falha ao deletar o arquivo do treinamento no Google Drive (URL: {file_url}), mas o registro na planilha será removido.")
+
+        if self.sheet_ops.excluir_dados_aba("treinamentos", training_id):
+            self.load_data() # Recarrega os dados
+            return True
+        return False
+    
     def delete_all_employee_data(self, employee_id: str):
         """Exclui permanentemente um funcionário, seus ASOs, treinamentos e todos os arquivos associados."""
         from gdrive.config import EMPLOYEE_DATA_SHEET_NAME
@@ -715,6 +744,7 @@ class EmployeeManager:
         else:
             st.error(f"Falha ao excluir o registro principal do funcionário ID {employee_id}.")
             return False 
+            
     def validar_treinamento(self, norma, modulo, tipo_treinamento, carga_horaria):
         norma_padronizada = self._padronizar_norma(norma)
         
@@ -778,6 +808,7 @@ class EmployeeManager:
         
         # Se nenhuma das condições de falha for atendida, o treinamento é considerado conforme.
         return True, "Carga horária conforme."
+
 
 
 
