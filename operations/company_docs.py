@@ -178,4 +178,20 @@ class CompanyDocsManager:
         except Exception as e:
             st.error(f"Erro ao adicionar documento da empresa: {e}")
             return None
-
+            
+    def delete_company_document(self, doc_id: str, file_url: str):
+        """
+        Deleta permanentemente um documento da empresa e seu arquivo no Google Drive.
+        """
+        logger.info(f"Iniciando exclusão do Documento da Empresa ID: {doc_id}")
+        if file_url and pd.notna(file_url):
+            # Reutiliza a instância do api_manager do EmployeeManager para consistência
+            from gdrive.google_api_manager import GoogleApiManager
+            api_manager = GoogleApiManager()
+            if not api_manager.delete_file_by_url(file_url):
+                st.warning(f"Aviso: Falha ao deletar o arquivo do documento no Google Drive (URL: {file_url}), mas o registro na planilha será removido.")
+        
+        if self.sheet_ops.excluir_dados_aba("documentos_empresa", doc_id):
+            self.load_company_data() # Recarrega os dados
+            return True
+        return False
