@@ -7,7 +7,6 @@ from email.mime.multipart import MIMEMultipart
 from datetime import date, timedelta
 import pandas as pd
 
-# Adiciona o diretório raiz ao path para encontrar os módulos
 root_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if root_dir not in sys.path:
     sys.path.append(root_dir)
@@ -45,41 +44,47 @@ def categorize_expirations(employee_manager: EmployeeManager, docs_manager: Comp
     ]
     active_employee_ids = active_employees_df['id'].tolist()
 
-    # Processamento de Treinamentos
+    # --- Processamento de Treinamentos (FILTRADO) ---
     trainings_df = employee_manager.training_df[employee_manager.training_df['funcionario_id'].isin(active_employee_ids)].copy()
     latest_trainings = pd.DataFrame()
     if not trainings_df.empty:
-        latest_trainings = trainings_df.sort_values('data', ascending=False).groupby(['funcionario_id', 'norma']).head(1)
-        latest_trainings['vencimento_dt'] = latest_trainings['vencimento'].dt.date
+        trainings_df['data_dt'] = pd.to_datetime(trainings_df['data'], format='%d/%m/%Y', errors='coerce')
+        trainings_df.dropna(subset=['data_dt'], inplace=True)
+        latest_trainings = trainings_df.sort_values('data_dt', ascending=False).groupby(['funcionario_id', 'norma']).head(1).copy()
+        latest_trainings['vencimento_dt'] = pd.to_datetime(latest_trainings['vencimento'], format='%d/%m/%Y', errors='coerce').dt.date
         latest_trainings.dropna(subset=['vencimento_dt'], inplace=True)
         
-    # Processamento de ASOs
+    # --- Processamento de ASOs (FILTRADO) ---
     asos_df = employee_manager.aso_df[employee_manager.aso_df['funcionario_id'].isin(active_employee_ids)].copy()
     latest_asos = pd.DataFrame()
     if not asos_df.empty:
-        latest_asos = asos_df.sort_values('data_aso', ascending=False).groupby(['funcionario_id', 'tipo_aso']).head(1)
-        latest_asos['vencimento_dt'] = latest_asos['vencimento'].dt.date
+        asos_df['data_aso_dt'] = pd.to_datetime(asos_df['data_aso'], format='%d/%m/%Y', errors='coerce')
+        asos_df.dropna(subset=['data_aso_dt'], inplace=True)
+        latest_asos = asos_df.sort_values('data_aso_dt', ascending=False).groupby(['funcionario_id', 'tipo_aso']).head(1).copy()
+        latest_asos['vencimento_dt'] = pd.to_datetime(latest_asos['vencimento'], format='%d/%m/%Y', errors='coerce').dt.date
         latest_asos.dropna(subset=['vencimento_dt'], inplace=True)
 
-    # Processamento de Documentos da Empresa
+    # --- Processamento de Documentos da Empresa (FILTRADO) ---
     company_docs_df = docs_manager.docs_df[docs_manager.docs_df['empresa_id'].isin(active_company_ids)].copy()
     latest_company_docs = pd.DataFrame()
     if not company_docs_df.empty:
-        latest_company_docs = company_docs_df.sort_values('data_emissao', ascending=False).groupby(['empresa_id', 'tipo_documento']).head(1)
-        latest_company_docs['vencimento_dt'] = latest_company_docs['vencimento'].dt.date
+        company_docs_df['data_emissao_dt'] = pd.to_datetime(company_docs_df['data_emissao'], format='%d/%m/%Y', errors='coerce')
+        company_docs_df.dropna(subset=['data_emissao_dt'], inplace=True)
+        latest_company_docs = company_docs_df.sort_values('data_emissao_dt', ascending=False).groupby(['empresa_id', 'tipo_documento']).head(1).copy()
+        latest_company_docs['vencimento_dt'] = pd.to_datetime(latest_company_docs['vencimento'], format='%d/%m/%Y', errors='coerce').dt.date
         latest_company_docs.dropna(subset=['vencimento_dt'], inplace=True)
 
     # --- Filtros de Vencimento (com a nova categoria de 45 dias) ---
-    vencidos_tr = latest_trainings[latest_trainings['vencimento_dt'] < today] if not latest_trainings.empty else pd.DataFrame()
-    vence_15_tr = latest_trainings[(latest_trainings['vencimento_dt'] >= today) & (latest_trainings['vencimento_dt'] <= today + timedelta(days=15))] if not latest_trainings.empty else pd.DataFrame()
-    vence_45_tr = latest_trainings[(latest_trainings['vencimento_dt'] > today + timedelta(days=15)) & (latest_trainings['vencimento_dt'] <= today + timedelta(days=45))] if not latest_trainings.empty else pd.DataFrame()
+    vencidos_tr = latest_trainings[latest_trainings['vencimento_dt'] < today]
+    vence_15_tr = latest_trainings[(latest_trainings['vencimento_dt'] >= today) & (latest_trainings['vencimento_dt'] <= today + timedelta(days=15))]
+    vence_45_tr = latest_trainings[(latest_trainings['vencimento_dt'] > today + timedelta(days=15)) & (latest_trainings['vencimento_dt'] <= today + timedelta(days=45))]
     
-    vencidos_aso = latest_asos[latest_asos['vencimento_dt'] < today] if not latest_asos.empty else pd.DataFrame()
-    vence_15_aso = latest_asos[(latest_asos['vencimento_dt'] >= today) & (latest_asos['vencimento_dt'] <= today + timedelta(days=15))] if not latest_asos.empty else pd.DataFrame()
-    vence_45_aso = latest_asos[(latest_asos['vencimento_dt'] > today + timedelta(days=15)) & (latest_asos['vencimento_dt'] <= today + timedelta(days=45))] if not latest_asos.empty else pd.DataFrame()
+    vencidos_aso = latest_asos[latest_asos['vencimento_dt'] < today]
+    vence_15_aso = latest_asos[(latest_asos['vencimento_dt'] >= today) & (latest_asos['vencimento_dt'] <= today + timedelta(days=15))]
+    vence_45_aso = latest_asos[(latest_asos['vencimento_dt'] > today + timedelta(days=15)) & (latest_asos['vencimento_dt'] <= today + timedelta(days=45))]
 
-    vencidos_docs = latest_company_docs[latest_company_docs['vencimento_dt'] < today] if not latest_company_docs.empty else pd.DataFrame()
-    vence_30_docs = latest_company_docs[(latest_company_docs['vencimento_dt'] >= today) & (latest_company_docs['vencimento_dt'] <= today + timedelta(days=30))] if not latest_company_docs.empty else pd.DataFrame()
+    vencidos_docs = latest_company_docs[latest_company_docs['vencimento_dt'] < today]
+    vence_30_docs = latest_company_docs[(latest_company_docs['vencimento_dt'] >= today) & (latest_company_docs['vencimento_dt'] <= today + timedelta(days=30))]
 
     # Adiciona informações de nome/empresa
     employee_id_to_name = employee_manager.employees_df.set_index('id')['nome']
@@ -105,7 +110,6 @@ def categorize_expirations(employee_manager: EmployeeManager, docs_manager: Comp
         "Documentos da Empresa que vencem nos próximos 30 dias": vence_30_docs,
     }
 
-
 def format_email_body(categorized_data: dict) -> str:
     html_style = """
     <style>
@@ -125,19 +129,13 @@ def format_email_body(categorized_data: dict) -> str:
     """
     has_content = False
     
-    # Ordem de exibição das seções no e-mail
     report_order = [
-        "Documentos da Empresa Vencidos",
-        "ASOs Vencidos",
-        "Treinamentos Vencidos",
+        "Documentos da Empresa Vencidos", "ASOs Vencidos", "Treinamentos Vencidos",
         "Documentos da Empresa que vencem nos próximos 30 dias",
-        "ASOs que vencem em até 15 dias",
-        "Treinamentos que vencem em até 15 dias",
-        "ASOs que vencem entre 16 e 45 dias",
-        "Treinamentos que vencem entre 16 e 45 dias"
+        "ASOs que vencem em até 15 dias", "Treinamentos que vencem em até 15 dias",
+        "ASOs que vencem entre 16 e 45 dias", "Treinamentos que vencem entre 16 e 45 dias"
     ]
 
-    # Configuração das colunas para cada seção (sem a coluna 'unidade')
     report_configs = {
         "Documentos da Empresa Vencidos": {"cols": ['empresa', 'tipo_documento', 'vencimento']},
         "Documentos da Empresa que vencem nos próximos 30 dias": {"cols": ['empresa', 'tipo_documento', 'vencimento']},
@@ -156,7 +154,6 @@ def format_email_body(categorized_data: dict) -> str:
             config = report_configs.get(title, {})
             html_body += f'<h2>{title} ({len(data_df)})</h2>'
             
-            # Garante que a coluna 'vencimento' seja formatada corretamente
             df_display = data_df.copy()
             if 'vencimento' in df_display.columns:
                 df_display['vencimento'] = pd.to_datetime(df_display['vencimento']).dt.strftime('%d/%m/%Y')
@@ -196,7 +193,6 @@ def main():
     try:
         config = get_smtp_config_from_env()
         
-        # Instancia os managers sem argumentos, como na arquitetura single-tenant
         employee_manager = EmployeeManager()
         docs_manager = CompanyDocsManager()
         
