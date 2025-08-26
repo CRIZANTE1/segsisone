@@ -112,7 +112,7 @@ def format_email_body(categorized_data: dict) -> str:
         body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif; font-size: 14px; }
         .container { max-width: 800px; margin: 20px auto; padding: 20px; background-color: #ffffff; border-radius: 8px; }
         h1 { font-size: 24px; text-align: center; }
-        h2 { font-size: 18px; color: #34495e; margin-top: 35px; border-bottom: 2px solid #e0e0e0; }
+        h2 { font-size: 18px; color: #34495e; margin-top: 35px; border-bottom: 2px solid #e0e0e0; padding-bottom: 5px; }
         table { border-collapse: collapse; width: 100%; margin-bottom: 25px; font-size: 13px; }
         th, td { border: 1px solid #dddddd; padding: 8px 12px; text-align: left; }
         th { background-color: #f2f2f2; }
@@ -124,26 +124,49 @@ def format_email_body(categorized_data: dict) -> str:
     <p style="text-align:center;">Relatório automático gerado em {date.today().strftime('%d/%m/%Y')}</p>
     """
     has_content = False
+    
+    # Ordem de exibição das seções no e-mail
+    report_order = [
+        "Documentos da Empresa Vencidos",
+        "ASOs Vencidos",
+        "Treinamentos Vencidos",
+        "Documentos da Empresa que vencem nos próximos 30 dias",
+        "ASOs que vencem em até 15 dias",
+        "Treinamentos que vencem em até 15 dias",
+        "ASOs que vencem entre 16 e 45 dias",
+        "Treinamentos que vencem entre 16 e 45 dias"
+    ]
+
+    # Configuração das colunas para cada seção (sem a coluna 'unidade')
     report_configs = {
         "Documentos da Empresa Vencidos": {"cols": ['empresa', 'tipo_documento', 'vencimento']},
         "Documentos da Empresa que vencem nos próximos 30 dias": {"cols": ['empresa', 'tipo_documento', 'vencimento']},
-        "Treinamentos Vencidos": {"cols": ['empresa', 'nome_funcionario', 'norma', 'vencimento']},
         "ASOs Vencidos": {"cols": ['empresa', 'nome_funcionario', 'tipo_aso', 'vencimento']},
-        "Treinamentos que vencem em até 15 dias": {"cols": ['empresa', 'nome_funcionario', 'norma', 'vencimento']},
+        "Treinamentos Vencidos": {"cols": ['empresa', 'nome_funcionario', 'norma', 'vencimento']},
         "ASOs que vencem em até 15 dias": {"cols": ['empresa', 'nome_funcionario', 'tipo_aso', 'vencimento']},
+        "Treinamentos que vencem em até 15 dias": {"cols": ['empresa', 'nome_funcionario', 'norma', 'vencimento']},
+        "ASOs que vencem entre 16 e 45 dias": {"cols": ['empresa', 'nome_funcionario', 'tipo_aso', 'vencimento']},
+        "Treinamentos que vencem entre 16 e 45 dias": {"cols": ['empresa', 'nome_funcionario', 'norma', 'vencimento']},
     }
     
-    for title, data_df in categorized_data.items():
-        if not data_df.empty:
+    for title in report_order:
+        if title in categorized_data and not categorized_data[title].empty:
+            data_df = categorized_data[title]
             has_content = True
             config = report_configs.get(title, {})
             html_body += f'<h2>{title} ({len(data_df)})</h2>'
-            cols_to_show = [col for col in config.get("cols", data_df.columns) if col in data_df.columns]
-            df_display = data_df[cols_to_show]
-            html_body += df_display.to_html(index=False, border=0, na_rep='N/A')
+            
+            # Garante que a coluna 'vencimento' seja formatada corretamente
+            df_display = data_df.copy()
+            if 'vencimento' in df_display.columns:
+                df_display['vencimento'] = pd.to_datetime(df_display['vencimento']).dt.strftime('%d/%m/%Y')
+
+            cols_to_show = [col for col in config.get("cols", df_display.columns) if col in df_display.columns]
+            html_body += df_display[cols_to_show].to_html(index=False, border=0, na_rep='N/A')
             
     if not has_content:
         html_body += "<h2>Nenhuma pendência encontrada!</h2><p>Todos os documentos estão em dia.</p>"
+    
     html_body += "</div></body></html>"
     return html_body
 
