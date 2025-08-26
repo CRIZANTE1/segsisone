@@ -85,7 +85,7 @@ class NRAnalyzer:
 
         try:
             query_embedding_result = genai.embed_content(
-                model='models/text-embedding-004',
+                model='gemini-embedding-001',
                 content=[query_text],
                 task_type="RETRIEVAL_QUERY"
             )
