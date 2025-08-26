@@ -156,7 +156,7 @@ def format_email_body(categorized_data: dict) -> str:
             
             df_display = data_df.copy()
             if 'vencimento' in df_display.columns:
-                df_display['vencimento'] = pd.to_datetime(df_display['vencimento']).dt.strftime('%d/%m/%Y')
+                df_display['vencimento'] = pd.to_datetime(df_display['vencimento'], dayfirst=True).dt.strftime('%d/%m/%Y')
 
             cols_to_show = [col for col in config.get("cols", df_display.columns) if col in df_display.columns]
             html_body += df_display[cols_to_show].to_html(index=False, border=0, na_rep='N/A')
