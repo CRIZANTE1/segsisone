@@ -99,7 +99,6 @@ class NRAnalyzer:
             query_embedding_result = genai.embed_content(
                 model='gemini-embedding-001',
                 content=[query_text],
-                task_type="RETRIEVAL_QUERY"
             )
             query_embedding = np.array(query_embedding_result['embedding'])
             similarities = cosine_similarity(query_embedding, self.rag_embeddings)[0]
