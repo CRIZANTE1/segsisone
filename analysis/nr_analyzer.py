@@ -20,10 +20,10 @@ from datetime import datetime
 @st.cache_data(ttl=3600)
 def load_and_embed_rag_base(sheet_id: str) -> tuple[pd.DataFrame, np.ndarray | None]:
     """
-    Carrega a planilha RAG, gera embeddings para cada chunk e armazena em cache.
+    Carrega a planilha RAG e gera embeddings em lotes para respeitar os limites da API.
     """
     try:
-        # Carrega os dados da planilha
+        # Carrega os dados da planilha (código existente, está correto)
         scopes = ['https://www.googleapis.com/auth/spreadsheets']
         creds_dict = get_credentials_dict()
         creds = Credentials.from_service_account_info(creds_dict, scopes=scopes)
@@ -36,27 +36,39 @@ def load_and_embed_rag_base(sheet_id: str) -> tuple[pd.DataFrame, np.ndarray | N
             st.error("A planilha RAG está vazia ou não contém a coluna 'Answer_Chunk'.")
             return pd.DataFrame(), None
 
-        with st.spinner(f"Indexando a base de conhecimento ({len(df)} itens)..."):
-            chunks_to_embed = df["Answer_Chunk"].tolist()
+        # --- 2. LÓGICA DE BATCHING APLICADA AQUI ---
+        all_embeddings = []
+        chunks_to_embed = df["Answer_Chunk"].tolist()
+        batch_size = 90
+        
+        progress_bar = st.progress(0, text=f"Indexando a base de conhecimento ({len(chunks_to_embed)} itens)...")
+        
+        for i in range(0, len(chunks_to_embed), batch_size):
+            batch = chunks_to_embed[i:i + batch_size]
+            
+            # Atualiza a barra de progresso
+            progress_bar.progress(i / len(chunks_to_embed), text=f"Processando lote {i//batch_size + 1}...")
+            
+            # Faz a chamada para o lote atual
             result = genai.embed_content(
-                model='models/text-embedding-004',
-                content=chunks_to_embed,
-                task_type="RETRIEVAL_DOCUMENT"
+                model='models/gemini-embedding-001',
+                content=batch
             )
-            embeddings = np.array(result['embedding'])
+            all_embeddings.extend(result['embedding'])
+            time.sleep(1)
+            
+            # Pausa de 1 segundo entre os lotes para não exceder o limite de 15 RPM
+            time.sleep(1)
+
+        progress_bar.empty()
+        embeddings = np.array(all_embeddings)
         
         st.success("Base de conhecimento indexada e pronta para uso!")
         return df, embeddings
 
     except Exception as e:
-        # Se a chave de API não estiver configurada, um erro será capturado aqui.
         st.error(f"Falha ao carregar e gerar embeddings para a base RAG: {e}")
-        st.warning("Verifique se a chave GEMINI_AUDIT_KEY está configurada corretamente nos secrets.")
-        return pd.DataFrame(), None
-
-    except Exception as e:
-        st.error(f"Falha ao carregar e gerar embeddings para a base RAG: {e}")
-        st.warning("Verifique sua chave de API e os limites de quota.")
+        st.warning("Verifique sua chave de API e os limites de quota. Se o erro persistir, considere habilitar o faturamento no seu projeto Google Cloud.")
         return pd.DataFrame(), None
 
 class NRAnalyzer:
